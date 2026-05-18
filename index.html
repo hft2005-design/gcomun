@@ -8,45 +8,38 @@
   <meta name="theme-color" content="#1F5E7A">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#eef2f5;font-family:'Inter',sans-serif;padding:20px}
-    .card{background:white;border-radius:32px;padding:24px;margin-bottom:24px;box-shadow:0 8px 20px rgba(0,0,0,0.05)}
-    .hero{background:linear-gradient(125deg,#0A2B3E,#1B4F6E);color:white}
-    h1{font-size:1.6rem;margin-bottom:8px}
-    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
-    .kpi{background:white;border-radius:28px;padding:16px;text-align:center}
-    .kpi-value{font-size:1.8rem;font-weight:800;color:#1F5E7A}
-    .chart-container{height:300px;margin:20px 0}
-    button{background:#2A9D8F;color:white;border:none;padding:12px 24px;border-radius:40px;font-weight:600}
-    .total-real{background:#EFFAF5;border-radius:28px;padding:6px 14px;font-weight:700}
+    body{background:#eef2f5;font-family:Arial,sans-serif;padding:20px}
+    .card{background:white;border-radius:20px;padding:20px;margin-bottom:20px}
+    .hero{background:#1F5E7A;color:white}
+    button{background:#2A9D8F;color:white;border:none;padding:10px 20px;border-radius:30px}
+    select,button{padding:10px;margin:5px}
+    .kpi{display:inline-block;background:white;border-radius:20px;padding:15px;margin:5px;text-align:center}
+    .kpi-value{font-size:24px;font-weight:bold;color:#1F5E7A}
+    canvas{max-width:100%}
     table{width:100%;border-collapse:collapse}
-    th,td{padding:12px;text-align:left;border-bottom:1px solid #e2edf2}
-    @media(max-width:700px){.kpi-value{font-size:1.4rem}}
+    td,th{padding:10px;border-bottom:1px solid #ddd}
   </style>
 </head>
 <body>
 <div class="card hero">
   <h1>🏢 Edificio Darío Urzúa · Unidad 502</h1>
   <p>Total = Gasto Común + Fondos + Agua Fría + Agua Caliente</p>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+  <div>
     <select id="yearFilter"><option value="all">Todos</option><option value="2025">2025</option><option value="2026">2026</option></select>
     <select id="monthFilter"><option value="all">Todos</option><option value="Mayo">Mayo</option><option value="Junio">Junio</option><option value="Julio">Julio</option><option value="Agosto">Agosto</option><option value="Septiembre">Septiembre</option><option value="Octubre">Octubre</option><option value="Noviembre">Noviembre</option><option value="Diciembre">Diciembre</option><option value="Enero">Enero</option><option value="Febrero">Febrero</option><option value="Marzo">Marzo</option><option value="Abril">Abril</option></select>
     <select id="periodFilter"><option value="all">Todo</option><option value="last3">Últimos 3 meses</option><option value="last6">Últimos 6 meses</option><option value="last12">Últimos 12 meses</option></select>
     <button id="resetBtn">Restablecer</button>
   </div>
 </div>
-
-<div class="kpi-grid" id="kpis"></div>
-
-<div class="card"><h2>📈 Evolución Total</h2><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
-<div class="card"><h2>📊 Composición del Gasto</h2><div class="chart-container"><canvas id="stackedChart"></canvas></div></div>
-<div class="card"><h2>🏆 Ranking</h2><div style="overflow-x:auto"><table id="rankingTable"><thead><tr><th>Concepto</th><th>Promedio</th><th>%</th></tr></thead><tbody id="rankingBody"></tbody></table></div></div>
+<div id="kpis"></div>
+<div class="card"><h2>📈 Evolución Total</h2><canvas id="trendChart" height="200"></canvas></div>
+<div class="card"><h2>📊 Composición del Gasto</h2><canvas id="stackedChart" height="200"></canvas></div>
 <div class="card"><h2>📅 Historial mensual</h2><div style="overflow-x:auto"><table id="monthlyTable"><thead><tr><th>Mes</th><th>Total</th><th>Gasto Base</th><th>F.Reserva</th><th>F.Indemn</th><th>Agua Fría</th><th>Agua Caliente</th></tr></thead><tbody id="monthlyBody"></tbody></table></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 const allData = [
   {year:2025,month:"Mayo",gcBase:123694,fondoReserva:6185,fondoIndemn:4453,aguaFria:9360,aguaCaliente:50692,totalReal:194384},
@@ -83,38 +76,21 @@ function update(){
   if(!data.length) return;
   
   const avgTotal = data.reduce((a,b)=>a+b.totalReal,0)/data.length;
-  const totalSum = data.reduce((a,b)=>a+b.totalReal,0);
-  const avgGc = data.reduce((a,b)=>a+b.gcBase,0)/data.length;
-  const avgAgua = data.reduce((a,b)=>a+b.aguaFria+b.aguaCaliente,0)/data.length;
-  const avgFondos = data.reduce((a,b)=>a+b.fondoReserva+b.fondoIndemn,0)/data.length;
-  
-  document.getElementById('kpis').innerHTML = `
-    <div class="kpi"><div class="kpi-value">$${Math.round(avgTotal).toLocaleString()}</div><div>Promedio Total</div><small>${data.length} meses</small></div>
-    <div class="kpi"><div class="kpi-value">$${Math.round(avgGc).toLocaleString()}</div><div>Gasto Base</div></div>
-    <div class="kpi"><div class="kpi-value">$${Math.round(avgAgua).toLocaleString()}</div><div>Agua (F+Cal)</div></div>
-    <div class="kpi"><div class="kpi-value">$${Math.round(avgFondos).toLocaleString()}</div><div>Fondos</div></div>
-  `;
+  document.getElementById('kpis').innerHTML = `<div class="kpi"><div class="kpi-value">$${Math.round(avgTotal).toLocaleString()}</div><div>Promedio Total</div></div>`;
   
   if(trendChart) trendChart.destroy();
-  trendChart = new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:data.map(d=>d.month),datasets:[{label:'Total a Pagar',data:data.map(d=>d.totalReal),borderColor:'#E76F51',fill:true,tension:0.3}]}});
+  trendChart = new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:data.map(d=>d.month),datasets:[{label:'Total a Pagar',data:data.map(d=>d.totalReal),borderColor:'#E76F51',fill:true}]}});
   
   if(stackedChart) stackedChart.destroy();
   stackedChart = new Chart(document.getElementById('stackedChart'),{type:'bar',data:{labels:data.map(d=>d.month),datasets:[
-    {label:'Gasto Base',data:data.map(d=>d.gcBase),backgroundColor:'#0F5B6E',stack:'s'},
-    {label:'F.Reserva',data:data.map(d=>d.fondoReserva),backgroundColor:'#2A9D8F',stack:'s'},
-    {label:'F.Indemn',data:data.map(d=>d.fondoIndemn),backgroundColor:'#54C0B0',stack:'s'},
-    {label:'Agua Fría',data:data.map(d=>d.aguaFria),backgroundColor:'#8ECAE6',stack:'s'},
-    {label:'Agua Caliente',data:data.map(d=>d.aguaCaliente),backgroundColor:'#F4A261',stack:'s'}
-  ]},options:{responsive:true,plugins:{tooltip:{callbacks:{footer:(items)=>'Total: $'+items.reduce((a,b)=>a+b.raw,0).toLocaleString()}}}}});
+    {label:'Gasto Base',data:data.map(d=>d.gcBase),backgroundColor:'#0F5B6E'},
+    {label:'F.Reserva',data:data.map(d=>d.fondoReserva),backgroundColor:'#2A9D8F'},
+    {label:'F.Indemn',data:data.map(d=>d.fondoIndemn),backgroundColor:'#54C0B0'},
+    {label:'Agua Fría',data:data.map(d=>d.aguaFria),backgroundColor:'#8ECAE6'},
+    {label:'Agua Caliente',data:data.map(d=>d.aguaCaliente),backgroundColor:'#F4A261'}
+  ]},options:{responsive:true}});
   
-  const ranking = [
-    {name:'Gasto Base',val:avgGc},{name:'Agua Caliente',val:data.reduce((a,b)=>a+b.aguaCaliente,0)/data.length},
-    {name:'F.Reserva',val:avgFondos*0.6},{name:'Agua Fría',val:data.reduce((a,b)=>a+b.aguaFria,0)/data.length},
-    {name:'F.Indemn',val:avgFondos*0.4}
-  ].sort((a,b)=>b.val-a.val);
-  document.getElementById('rankingBody').innerHTML = ranking.map(r=>`<tr><td>${r.name}</td><td>$${Math.round(r.val).toLocaleString()}</td><td>${Math.round(r.val/avgTotal*100)}%</td></tr>`).join('');
-  
-  document.getElementById('monthlyBody').innerHTML = data.map(m=>`<tr><td>${m.month} ${m.year}</td><td class="total-real">$${m.totalReal.toLocaleString()}</td><td>$${m.gcBase.toLocaleString()}</td><td>$${m.fondoReserva.toLocaleString()}</td><td>$${m.fondoIndemn.toLocaleString()}</td><td>$${m.aguaFria.toLocaleString()}</td><td>$${m.aguaCaliente.toLocaleString()}</td></tr>`).join('');
+  document.getElementById('monthlyBody').innerHTML = data.map(m=>`<tr><td>${m.month} ${m.year}</td><td>$${m.totalReal.toLocaleString()}</td><td>$${m.gcBase.toLocaleString()}</td><td>$${m.fondoReserva.toLocaleString()}</td><td>$${m.fondoIndemn.toLocaleString()}</td><td>$${m.aguaFria.toLocaleString()}</td><td>$${m.aguaCaliente.toLocaleString()}</td></tr>`).join('');
 }
 
 document.getElementById('yearFilter').onchange = update;
