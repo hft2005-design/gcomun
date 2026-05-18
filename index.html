@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>GC Darío Urzúa</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1F5E7A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#eef2f5;font-family:'Inter',sans-serif;padding:20px}
+    .card{background:white;border-radius:32px;padding:24px;margin-bottom:24px;box-shadow:0 8px 20px rgba(0,0,0,0.05)}
+    .hero{background:linear-gradient(125deg,#0A2B3E,#1B4F6E);color:white}
+    h1{font-size:1.6rem;margin-bottom:8px}
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
+    .kpi{background:white;border-radius:28px;padding:16px;text-align:center}
+    .kpi-value{font-size:1.8rem;font-weight:800;color:#1F5E7A}
+    .chart-container{height:300px;margin:20px 0}
+    button{background:#2A9D8F;color:white;border:none;padding:12px 24px;border-radius:40px;font-weight:600}
+    .total-real{background:#EFFAF5;border-radius:28px;padding:6px 14px;font-weight:700}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #e2edf2}
+    @media(max-width:700px){.kpi-value{font-size:1.4rem}}
+  </style>
+</head>
+<body>
+<div class="card hero">
+  <h1>🏢 Edificio Darío Urzúa · Unidad 502</h1>
+  <p>Total = Gasto Común + Fondos + Agua Fría + Agua Caliente</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+    <select id="yearFilter"><option value="all">Todos</option><option value="2025">2025</option><option value="2026">2026</option></select>
+    <select id="monthFilter"><option value="all">Todos</option><option value="Mayo">Mayo</option><option value="Junio">Junio</option><option value="Julio">Julio</option><option value="Agosto">Agosto</option><option value="Septiembre">Septiembre</option><option value="Octubre">Octubre</option><option value="Noviembre">Noviembre</option><option value="Diciembre">Diciembre</option><option value="Enero">Enero</option><option value="Febrero">Febrero</option><option value="Marzo">Marzo</option><option value="Abril">Abril</option></select>
+    <select id="periodFilter"><option value="all">Todo</option><option value="last3">Últimos 3 meses</option><option value="last6">Últimos 6 meses</option><option value="last12">Últimos 12 meses</option></select>
+    <button id="resetBtn">Restablecer</button>
+  </div>
+</div>
+
+<div class="kpi-grid" id="kpis"></div>
+
+<div class="card"><h2>📈 Evolución Total</h2><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+<div class="card"><h2>📊 Composición del Gasto</h2><div class="chart-container"><canvas id="stackedChart"></canvas></div></div>
+<div class="card"><h2>🏆 Ranking</h2><div style="overflow-x:auto"><table id="rankingTable"><thead><tr><th>Concepto</th><th>Promedio</th><th>%</th></tr></thead><tbody id="rankingBody"></tbody></table></div></div>
+<div class="card"><h2>📅 Historial mensual</h2><div style="overflow-x:auto"><table id="monthlyTable"><thead><tr><th>Mes</th><th>Total</th><th>Gasto Base</th><th>F.Reserva</th><th>F.Indemn</th><th>Agua Fría</th><th>Agua Caliente</th></tr></thead><tbody id="monthlyBody"></tbody></table></div></div>
+
+<script>
+const allData = [
+  {year:2025,month:"Mayo",gcBase:123694,fondoReserva:6185,fondoIndemn:4453,aguaFria:9360,aguaCaliente:50692,totalReal:194384},
+  {year:2025,month:"Junio",gcBase:123694,fondoReserva:6185,fondoIndemn:4453,aguaFria:9360,aguaCaliente:50692,totalReal:194384},
+  {year:2025,month:"Julio",gcBase:132246,fondoReserva:6612,fondoIndemn:4761,aguaFria:6860,aguaCaliente:71423,totalReal:221902},
+  {year:2025,month:"Agosto",gcBase:132246,fondoReserva:6612,fondoIndemn:4761,aguaFria:6860,aguaCaliente:71423,totalReal:221902},
+  {year:2025,month:"Septiembre",gcBase:140886,fondoReserva:7044,fondoIndemn:5072,aguaFria:9710,aguaCaliente:62210,totalReal:224922},
+  {year:2025,month:"Octubre",gcBase:129040,fondoReserva:6452,fondoIndemn:4645,aguaFria:10730,aguaCaliente:50791,totalReal:201658},
+  {year:2025,month:"Noviembre",gcBase:136760,fondoReserva:6838,fondoIndemn:4923,aguaFria:9246,aguaCaliente:50937,totalReal:208704},
+  {year:2025,month:"Diciembre",gcBase:144370,fondoReserva:7219,fondoIndemn:5197,aguaFria:9034,aguaCaliente:44341,totalReal:210161},
+  {year:2026,month:"Enero",gcBase:129040,fondoReserva:6452,fondoIndemn:4645,aguaFria:10718,aguaCaliente:27523,totalReal:178378},
+  {year:2026,month:"Febrero",gcBase:113210,fondoReserva:5661,fondoIndemn:4075,aguaFria:10718,aguaCaliente:27523,totalReal:161187},
+  {year:2026,month:"Marzo",gcBase:138847,fondoReserva:6942,fondoIndemn:4998,aguaFria:20185,aguaCaliente:72535,totalReal:243507},
+  {year:2026,month:"Abril",gcBase:155448,fondoReserva:7772,fondoIndemn:5596,aguaFria:24866,aguaCaliente:75483,totalReal:269165}
+];
+
+function filterData(year,month,period){
+  let f = [...allData];
+  if(year!='all') f = f.filter(d=>d.year==year);
+  if(month!='all') f = f.filter(d=>d.month==month);
+  if(period=='last3') f = f.slice(-3);
+  if(period=='last6') f = f.slice(-6);
+  if(period=='last12') f = f.slice(-12);
+  return f;
+}
+
+let trendChart, stackedChart;
+
+function update(){
+  const year = document.getElementById('yearFilter').value;
+  const month = document.getElementById('monthFilter').value;
+  const period = document.getElementById('periodFilter').value;
+  const data = filterData(year,month,period);
+  if(!data.length) return;
+  
+  const avgTotal = data.reduce((a,b)=>a+b.totalReal,0)/data.length;
+  const totalSum = data.reduce((a,b)=>a+b.totalReal,0);
+  const avgGc = data.reduce((a,b)=>a+b.gcBase,0)/data.length;
+  const avgAgua = data.reduce((a,b)=>a+b.aguaFria+b.aguaCaliente,0)/data.length;
+  const avgFondos = data.reduce((a,b)=>a+b.fondoReserva+b.fondoIndemn,0)/data.length;
+  
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-value">$${Math.round(avgTotal).toLocaleString()}</div><div>Promedio Total</div><small>${data.length} meses</small></div>
+    <div class="kpi"><div class="kpi-value">$${Math.round(avgGc).toLocaleString()}</div><div>Gasto Base</div></div>
+    <div class="kpi"><div class="kpi-value">$${Math.round(avgAgua).toLocaleString()}</div><div>Agua (F+Cal)</div></div>
+    <div class="kpi"><div class="kpi-value">$${Math.round(avgFondos).toLocaleString()}</div><div>Fondos</div></div>
+  `;
+  
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:data.map(d=>d.month),datasets:[{label:'Total a Pagar',data:data.map(d=>d.totalReal),borderColor:'#E76F51',fill:true,tension:0.3}]}});
+  
+  if(stackedChart) stackedChart.destroy();
+  stackedChart = new Chart(document.getElementById('stackedChart'),{type:'bar',data:{labels:data.map(d=>d.month),datasets:[
+    {label:'Gasto Base',data:data.map(d=>d.gcBase),backgroundColor:'#0F5B6E',stack:'s'},
+    {label:'F.Reserva',data:data.map(d=>d.fondoReserva),backgroundColor:'#2A9D8F',stack:'s'},
+    {label:'F.Indemn',data:data.map(d=>d.fondoIndemn),backgroundColor:'#54C0B0',stack:'s'},
+    {label:'Agua Fría',data:data.map(d=>d.aguaFria),backgroundColor:'#8ECAE6',stack:'s'},
+    {label:'Agua Caliente',data:data.map(d=>d.aguaCaliente),backgroundColor:'#F4A261',stack:'s'}
+  ]},options:{responsive:true,plugins:{tooltip:{callbacks:{footer:(items)=>'Total: $'+items.reduce((a,b)=>a+b.raw,0).toLocaleString()}}}}});
+  
+  const ranking = [
+    {name:'Gasto Base',val:avgGc},{name:'Agua Caliente',val:data.reduce((a,b)=>a+b.aguaCaliente,0)/data.length},
+    {name:'F.Reserva',val:avgFondos*0.6},{name:'Agua Fría',val:data.reduce((a,b)=>a+b.aguaFria,0)/data.length},
+    {name:'F.Indemn',val:avgFondos*0.4}
+  ].sort((a,b)=>b.val-a.val);
+  document.getElementById('rankingBody').innerHTML = ranking.map(r=>`<tr><td>${r.name}</td><td>$${Math.round(r.val).toLocaleString()}</td><td>${Math.round(r.val/avgTotal*100)}%</td></tr>`).join('');
+  
+  document.getElementById('monthlyBody').innerHTML = data.map(m=>`<tr><td>${m.month} ${m.year}</td><td class="total-real">$${m.totalReal.toLocaleString()}</td><td>$${m.gcBase.toLocaleString()}</td><td>$${m.fondoReserva.toLocaleString()}</td><td>$${m.fondoIndemn.toLocaleString()}</td><td>$${m.aguaFria.toLocaleString()}</td><td>$${m.aguaCaliente.toLocaleString()}</td></tr>`).join('');
+}
+
+document.getElementById('yearFilter').onchange = update;
+document.getElementById('monthFilter').onchange = update;
+document.getElementById('periodFilter').onchange = update;
+document.getElementById('resetBtn').onclick = () => {
+  document.getElementById('yearFilter').value='all';
+  document.getElementById('monthFilter').value='all';
+  document.getElementById('periodFilter').value='all';
+  update();
+};
+update();
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
